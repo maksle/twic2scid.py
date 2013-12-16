@@ -11,28 +11,28 @@ Scid database and perform spellchecking.
 
 Usage: twic2scid.py [Options] [database [spellingfile]]
 
-> Options:
->   -h, --help  show this help message and exit
->
-
->   -a, --all   gets all pgn archives on the page. Overrides -n if specified.
+Options:
+  -h, --help  show this help message and exit
 
 
->   -n LATESTN  gets LATESTN archives. LATESTN must be an integer. If LATESTN is
->               greater than the number of pgn archives found on the twic page,
->               this is equivalent to --all. If LATESTN is zero, this option is
->               ignored.
+  -a, --all   gets all pgn archives on the page. Overrides -n if specified.
 
 
->   -d DATABASE, --database=DATABASE
->               specify the scid database to merge into. Default value
->               is 'twic'. Note that this omits the extension .si4 of
->               the database.
+  -n LATESTN  gets LATESTN archives. LATESTN must be an integer. If LATESTN is
+              greater than the number of pgn archives found on the twic page,
+              this is equivalent to --all. If LATESTN is zero, this option is
+              ignored.
 
 
->   -s SPELLING, --spelling=SPELLING
->                specifies the spelling file for meta corrections.
->                Default value is 'spelling.ssp'.
+ -d DATABASE, --database=DATABASE
+              specify the scid database to merge into. Default value
+              is 'twic'. Note that this omits the extension .si4 of
+              the database.
+
+
+ -s SPELLING, --spelling=SPELLING
+               specifies the spelling file for meta corrections.
+               Default value is 'spelling.ssp'.
 
 
 Example usage:
@@ -51,5 +51,6 @@ If no database/spellingfile args are given, these defaults are used (note -
 database does not include ".si4")
 
 scid_database = "twic"
+
 scid_spelling = "spelling.ssp"
 
