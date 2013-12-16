@@ -38,16 +38,13 @@ Usage: twic2scid.py [Options] [database [spellingfile]]
 Example usage:
 
     twic2scid.py -n 3 -d ~/scidbases/twic -s ~/scidbases/spelling.ssp
-      merges latest 3 pgns into specified scid database and spelling file.
+merges latest 3 pgns into specified scid database and spelling file.
 
     twic2scid.py -a
-      merges all pgns available into the default database with the
-      default spelling file.
+merges all pgns available into the default database with the default spelling file.
 
     twic2scid.py --latestn=5 --spelling=another_spelling.ssp
-      merges latest 5 pgns into the default database 'twic.si4' in current
-      directory, and uses spelling file 'another_spelling.ssp' in current
-      directory.
+merges latest 5 pgns into the default database 'twic.si4' in current directory, and uses spelling file 'another_spelling.ssp' in current directory.
 
 
 If no database/spellingfile args are given, these defaults are used (note -
