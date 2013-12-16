@@ -6,6 +6,8 @@ See http://sourceforge.net/p/scidvspc/code/HEAD/tree/scripts/twic2scid.py
 My version of scid vs pc's twic2scid.py. It scrapes theweekinchess.com for the
 weekly games and and merges to my scid db. The twic files are the actual db.
 
+You need to have 'Scid vs Pc' installed.
+
 Download the current week's TWIC games and append them to an existing
 Scid database and perform spellchecking.
 
