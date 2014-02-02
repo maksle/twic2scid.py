@@ -1,0 +1,45 @@
+Downloading the Week in Chess main page...
+Getting PGN archives "['http://www.theweekinchess.com/zips/twic1003g.zip']"...
+--2014-02-02 18:31:20--  http://www.theweekinchess.com/zips/twic1003g.zip
+Resolving www.theweekinchess.com (www.theweekinchess.com)... 69.89.31.184
+Connecting to www.theweekinchess.com (www.theweekinchess.com)|69.89.31.184|:80... connected.
+HTTP request sent, awaiting response... 200 OK
+Length: 259999 (254K) [application/zip]
+Saving to: `/tmp/tmphZAt9c.zip'
+
+     0K .......... .......... .......... .......... .......... 19%  115K 2s
+    50K .......... .......... .......... .......... .......... 39%  290K 1s
+   100K .......... .......... .......... .......... .......... 59%  268K 1s
+   150K .......... .......... .......... .......... .......... 78%  520K 0s
+   200K .......... .......... .......... .......... .......... 98%  458K 0s
+   250K ...                                                   100%  947K=1.0s
+
+2014-02-02 18:31:21 (253 KB/s) - `/tmp/tmphZAt9c.zip' saved [259999/259999]
+
+
+Unzipping and converting to scid databases...
+Converting file /tmp/tmpiTfTnU.pgn to Scid database /tmp/tmpgMoTfL:
+Errors/warnings will be written to /tmp/tmpgMoTfL.err.
+
+  [0% 10   20   30   40   50   60   70   80   90  100]
+  [..................................................]
+
+Database `/tmp/tmpgMoTfL': 995 games, 676 players, 18 events, 15 sites.
+There were no warnings or errors.
+
+Merging databases into twic.new...
+Successfully merged 2 files, of 248595 games.
+
+Moving new database to twic...
+Successfully merged 1 files, of 248595 games.
+
+Spell checking the new database...
+Spellchecking names...
+  536 player names occurring 1558 times in total were corrected.
+  11 event names occurring 463 times in total were corrected.
+  1 site name occurring 5 times in total were corrected.
+  No valid corrections were found.
+Checking for duplicate games...
+  Found 995 duplicate games.
+
+Writing to log file twic.log of links successfully merged...

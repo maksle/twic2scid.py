@@ -54,13 +54,14 @@
 
 
 import glob
+import os
+import re
+import string
+import` subprocess
+import sys
+import tempfile
 import urllib
 import zipfile
-import tempfile
-import string
-import sys
-import re
-import os
 
 from optparse import OptionParser
 
@@ -91,6 +92,13 @@ parser.add_option("-d", "--database", dest="database",
 parser.add_option("-s", "--spelling", dest="spelling",
                   help="specifies the spelling file for meta corrections. Default value is 'spelling.ssp'.")
 
+
+def systemapi(cmd):
+    proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+    out, err = proc.communicate()
+    if out: print out
+    if err: print err
+    return proc.returncode
 
 # DEFAULTS are set here
 parser.set_defaults(database="twic",
@@ -151,9 +159,9 @@ for link in pgn_links:
     containers.append(container)
 
     if os.path.isfile("/usr/bin/lftp"):
-        status = os.system("lftp -c 'get %s -o %s; quit'" % (link, container))
+        status = systemapi("lftp -c 'get %s -o %s; quit'" % (link, container))
     else:
-        status = os.system("wget -O %s %s" % (container, link))
+        status = systemapi("wget -O %s %s" % (container, link))
 
         if status != 0:
             print "lftp or wget not working, retrying directly..."
@@ -174,7 +182,7 @@ for pgn_zip in pgn_zips:
             outfd.close()
 
             database = tempfile.mktemp()
-            os.system("pgnscid -f %s %s" % (output, database))
+            systemapi("pgnscid -f %s %s" % (output, database))
             databases.append(database)
 
             os.unlink(output)
@@ -185,7 +193,7 @@ map(os.unlink, containers)
 print "Merging databases into %s.new..." % scid_database
 
 if databases:
-    status = os.system("scmerge %s %s %s" %
+    status = systemapi("scmerge %s %s %s" %
                        (scid_database + ".new",
                         scid_database, string.join(databases, " ")))
 
@@ -195,10 +203,12 @@ if databases:
     if status == 0:
         print "Moving new database to %s..." % scid_database
         map(os.unlink, glob.glob("%s.s*" % scid_database))
-        os.system("scmerge %s %s" % (scid_database, scid_database + ".new"))
+        systemapi("scmerge %s %s" % (scid_database, scid_database + ".new"))
         map(os.unlink, glob.glob("%s.s*" % (scid_database + ".new")))
         print "Spell checking the new database..."
-        os.system("sc_spell %s %s" % (scid_database, scid_spelling))
+        systemapi("sc_spell %s %s" % (scid_database, scid_spelling))
         print "Writing to log file twic.log of links successfully merged..."
         for link in pgn_links[::-1]:
-            os.system("echo '%s' >> twic.log" % link)
+            systemapi("echo '%s' >> twic.log" % link)
+
+
