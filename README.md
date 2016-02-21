@@ -14,33 +14,37 @@ Scid database and perform spellchecking.
 Usage: twic2scid.py [Options] [database [spellingfile]]
 
 Options:
-  -h, --help  show this help message and exit
+  -h, --help            show this help message and exit
 
+  -a, --all             gets all pgn archives on the page. Overrides -n if
+                        specified.
 
-  -a, --all   gets all pgn archives on the page. Overrides -n if specified.
+  -n LATESTN, --latestn=LATESTN
+                        gets LATESTN archives. LATESTN must be an integer. If
+                        LATESTN is greater than the number of pgn archives
+                        found on the twic page, this is equivalent to --all.
+                        If LATESTN is zero, this option is ignored.
 
+  -l LIST, --list=LIST  comma delimited list of twic ids to fetch. Takes
+                        precedence over -a and -n
 
-  -n LATESTN  gets LATESTN archives. LATESTN must be an integer. If LATESTN is
-              greater than the number of pgn archives found on the twic page,
-              this is equivalent to --all. If LATESTN is zero, this option is
-              ignored.
+  -d DATABASE, --database=DATABASE
+                        specify the scid database to merge into. Default value
+                        is 'twic'. Note that this omits the extension .si4 of
+                        the database.
 
-
- -d DATABASE, --database=DATABASE
-              specify the scid database to merge into. Default value
-              is 'twic'. Note that this omits the extension .si4 of
-              the database.
-
-
- -s SPELLING, --spelling=SPELLING
-               specifies the spelling file for meta corrections.
-               Default value is 'spelling.ssp'.
+  -s SPELLING, --spelling=SPELLING
+                        specifies the spelling file for meta corrections.
+                        Default value is 'spelling.ssp'.
 
 
 Example usage:
 
     twic2scid.py -n 3 -d ~/scidbases/twic -s ~/scidbases/spelling.ssp
 merges latest 3 pgns into specified scid database and spelling file.
+
+    twic2scid.py -l 1099,1100
+merges pgn #s 1099 and 1100 into default database with default spelling file
 
     twic2scid.py -a
 merges all pgns available into the default database with the default spelling file.

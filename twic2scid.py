@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2
 
 # Download the current week's TWIC games and append them to an existing
 # Scid database and perform spellchecking.
@@ -45,6 +45,7 @@
 # Modifications by Maksim Grinman:
 # 3/20/2013: Updated to work with the new TWIC site at http://www.theweekinchess.com/twic
 # 3/23/2013: Updated to support optional flags -a and -n.
+# 11/25/2015: Updated to add optional flag -l
 
 # NOTE: This program comes with absolutely NO WARRANTY.  If anything
 # goes wrong, it may delete your database entirely instead of adding
@@ -56,8 +57,9 @@
 import glob
 import os
 import re
+import shutil
 import string
-import` subprocess
+import subprocess
 import sys
 import tempfile
 import urllib
@@ -76,7 +78,9 @@ usage = "Usage: %prog [Options]\n\n" \
   "    --merges all pgns available into the default database with the default spelling file.\n" \
   "  twic2scid.py --latestn=5 --spelling=another_spelling.ssp\n" \
   "    --merges latest 5 pgns into the default database 'twic.si4' in current directory, and uses " \
-  "spelling file 'another_spelling.ssp' in current directory."
+  "spelling file 'another_spelling.ssp' in current directory.\n" \
+  "  twic2scid.py -l 1098,1040\n" \
+  "    --gets twic1098 and twic1040 pgns only"
 
 parser = OptionParser(usage)
 
@@ -85,6 +89,9 @@ parser.add_option("-a", "--all", action="store_true", dest="all",
 
 parser.add_option("-n", "--latestn", type="int", dest="latestn",
                   help="gets LATESTN archives. LATESTN must be an integer. If LATESTN is greater than the number of pgn archives found on the twic page, this is equivalent to --all. If LATESTN is zero, this option is ignored.")
+
+parser.add_option("-l", "--list", type="string", dest="list",
+                  help="comma delimited list of twic ids to fetch. Takes precedence over -a and -n")
 
 parser.add_option("-d", "--database", dest="database",
                   help="specify the scid database to merge into. Default value is 'twic'. Note that this omits the extension .si4 of the database.")
@@ -111,6 +118,9 @@ if options.all or options.latestn == 0 or options.latestn == None:
 else:
     options.latestn = abs(options.latestn)
 
+if options.list:
+    options.list = options.list.split(',')
+    
 scid_database = options.database
 scid_spelling = options.spelling
 
@@ -123,18 +133,26 @@ pgn_links = []
 
 found = 0
 for line in url.readlines():
-    match = re.search("http://[^\"]+", line)
+    # match = re.search("http://[^\"]+", line)
+    match = re.search("(http://[^\"']+twic(\d+)g.zip)\">PGN<", line)
     if match:
-        pgn = re.search(">PGN<", line)
-        if pgn:
-            pgn_links.append(match.group(0))
+        pgn, id = match.groups()
+        if len(options.list):
+            if id in options.list:
+                pgn_links.append(pgn)
+                found = found + 1
+                if found == len(options.list): 
+                    break
+        else:
+            pgn_links.append(pgn)
             found = found + 1
-            if options.all:
-                continue
-            elif options.latestn and found != options.latestn:
-                continue
-            else:
-                break
+
+        if options.all or len(options.list):
+            continue
+        elif options.latestn and found != options.latestn:
+            continue
+        else:
+            break
 
 if not found:
     print "Could not find PGN zipfile name in twic.html!"
@@ -162,7 +180,6 @@ for link in pgn_links:
         status = systemapi("lftp -c 'get %s -o %s; quit'" % (link, container))
     else:
         status = systemapi("wget -O %s %s" % (container, link))
-
         if status != 0:
             print "lftp or wget not working, retrying directly..."
             fd = open(container, "wb")
@@ -180,7 +197,8 @@ for pgn_zip in pgn_zips:
             outfd = open(output, "wb")
             outfd.write(pgn_zip.read(file))
             outfd.close()
-
+            outfd2 = open(file, "a").close()
+            shutil.copy(output, file)
             database = tempfile.mktemp()
             systemapi("pgnscid -f %s %s" % (output, database))
             databases.append(database)
