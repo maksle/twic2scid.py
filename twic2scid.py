@@ -57,13 +57,13 @@
 import glob
 import os
 import re
-import shutil
 import subprocess
 import sys
 import tempfile
 import requests
 import zipfile
 
+from bs4 import BeautifulSoup
 from optparse import OptionParser
 
 os.environ["PATH"] = os.environ["PATH"] + ":/usr/local/bin"
@@ -88,6 +88,7 @@ parser = OptionParser(usage)
 parser.add_option(
     "-a",
     "--all",
+    "--sync",
     action="store_true",
     dest="all",
     help="gets all pgn archives on the page. Overrides -n if specified.",
@@ -136,6 +137,12 @@ def systemapi(cmd):
     return proc.returncode
 
 
+script_directory = os.path.dirname(os.path.realpath(__file__))
+
+PGNSCID = "/usr/share/scid/bin/pgnscid"
+SCMERGE = "/usr/share/scid/bin/scmerge"
+SCSPELL = "/usr/share/scid/bin/scripts/sc_spell.tcl"
+
 # DEFAULTS are set here
 parser.set_defaults(database="twic", spelling="spelling.ssp")
 
@@ -157,111 +164,109 @@ if options.list:
 scid_database = options.database
 scid_spelling = options.spelling
 
-print("Downloading the Week in Chess main page...")
 
 headers = {
     "User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:69.0) Gecko/20100101 Firefox/69.0"
 }
-url = requests.get(
-    "https://theweekinchess.com/twic",
-    headers=headers,
-)
 
-# list of pgn links found
-pgn_links = []
 
-found = 0
+def fetch_links():
+    print("Downloading the Week in Chess main page...")
+    url = requests.get("https://theweekinchess.com/twic", headers=headers, timeout=30)
+    bs = BeautifulSoup(url.content, features="lxml")
+    links = bs.find_all("a")
+    hrefs = [_.get("href") for _ in links if _.get("href")]
+    hrefs = [(href, re.search(r"twic(\d+)g.zip", href)) for href in hrefs]
+    hrefs = [(href, match.group(1)) for (href, match) in hrefs if match]
+    return hrefs
 
-from bs4 import BeautifulSoup
 
-bs = BeautifulSoup(url.content, features="lxml")
-links = bs.find_all("a")
-hrefs = [_.get("href") for _ in links if _.get("href")]
-hrefs = [(href, re.search(r"twic(\d+)g.zip", href)) for href in hrefs]
-hrefs = [(href, match.group(1)) for (href, match) in hrefs if match]
+def filter_hrefs(hrefs, options):
+    if options.list:
+        hrefs = [(href, id_) for (href, id_) in hrefs if int(id_) in options.list]
+    elif options.latestn:
+        hrefs = sorted(hrefs, key=lambda v: int(v[1]))
+        hrefs = hrefs[-options.latestn :]
+    return hrefs
 
-if options.list:
-    hrefs = [(href, _id) for (href, _id) in hrefs if int(_id) in options.list]
-elif options.latestn:
-    hrefs = hrefs[-options.latestn]
 
-pgn_links = [href for (href, _id) in hrefs]
+def get_merged_ids_from_log() -> set:
+    merged = set()
+    with open("twic.log", "r") as merge_log:
+        for href in merge_log:
+            match = re.search(r"twic(\d+)g.zip", href)
+            if match:
+                merged.add(match.group(1))
+    return merged
 
-if not pgn_links:
-    print("Could not find PGN zipfile name in twic.html!")
-    sys.exit(1)
 
-# I prefer to use lftp here, since it does all the retrying and status
-# display for me
+def main():
+    databases = []
+    hrefs = filter_hrefs(fetch_links(), options)
+    merged_ids = get_merged_ids_from_log()
+    if not hrefs:
+        print("Could not find PGN zipfile name in twic.html!")
+        sys.exit(1)
+    for href, id_ in hrefs:
+        # if os.path.isfile(os.path.join(script_directory, f"twic{id_}.pgn")):
+        #     continue
+        if id_ in merged_ids:
+            print(f"skipping {id_}")
+            continue
+        container = download(href)
+        database = make_databases_from_zip(container)
+        databases.append(database)
+        os.unlink(container)
+    if databases:
+        status = merge(databases)
+        if status == 0:
+            for href, _ in hrefs[::-1]:
+                systemapi(f"echo '{href}' >> twic.log")
 
-print('Getting PGN archives "%s"...' % pgn_links)
 
-# will hold scid databases to be merged
-databases = []
-
-# will hold zips downloaded, each zip should contain a pgn file
-pgn_zips = []
-
-# containers = will hold pointer to each 'container' for cleanup after use
-containers = []
-
-for link in pgn_links:
+def download(href):
     container = tempfile.mktemp(".zip")
-    containers.append(container)
-
     if os.path.isfile("/usr/bin/lftp"):
-        status = systemapi("lftp -c 'get %s -o %s; quit'" % (link, container))
+        status = systemapi(f"lftp -c 'get {href} -o {container}; quit'")
     else:
-        status = systemapi("wget -O %s %s" % (container, link))
-        if status != 0:
-            print("lftp or wget not working, retrying directly...")
-            with open(container, "wb") as fd:
-                fd.write(requests.get(link, headers=headers).content)
+        status = systemapi(f"wget --no-verbose -O {container} {href}")
+    if status != 0:
+        print("lftp or wget not working, retrying directly...")
+        with open(container, "wb") as fd:
+            fd.write(requests.get(href, headers=headers, timeout=30).content)
+    return container
 
-    pgn_zips.append(zipfile.ZipFile(container))
 
-print("Unzipping and converting to scid databases...")
-
-PGNSCID = "/usr/share/scid/bin/pgnscid"
-SCMERGE = "/usr/share/scid/bin/scmerge"
-SCSPELL = "/usr/share/scid/bin/scripts/sc_spell.tcl"
-
-for pgn_zip in pgn_zips:
-    for file in pgn_zip.namelist():
-        if re.search(r"\.pgn$", file):
-            output = tempfile.mktemp(".pgn")
-            with open(output, "wb") as outfd:
-                outfd.write(pgn_zip.read(file))
-            with open(file, "a") as outfd2:
-                pass
-            shutil.copy(output, file)
+def make_databases_from_zip(container) -> str:
+    with zipfile.ZipFile(container) as pgn_zip:
+        for name in pgn_zip.namelist():
+            if not re.search(r"\.pgn$", name):
+                continue
+            with open(name, "wb") as outfd:
+                outfd.write(pgn_zip.read(name))
             database = tempfile.mktemp()
-            systemapi(f"{PGNSCID} -f %s %s" % (output, database))
-            databases.append(database)
+            systemapi(f"{PGNSCID} -f %s %s" % (name, database))
+            return database
 
-            os.unlink(output)
-    pgn_zip.close()
 
-map(os.unlink, containers)
+def merge(databases):
+    new = scid_database + ".new"
+    print(f"Merging databases into {new}")
+    status = systemapi(f"{SCMERGE} {new} {scid_database} {' '.join(databases)}")
 
-print("Merging databases into %s.new..." % scid_database)
-
-if databases:
-    status = systemapi(
-        f"{SCMERGE} %s %s %s"
-        % (scid_database + ".new", scid_database, " ".join(databases))
-    )
-
-    for file in databases:
-        map(os.unlink, glob.glob("%s.s*" % file))
+    for db in databases:
+        map(os.unlink, glob.glob(f"{db}.s*"))
 
     if status == 0:
-        print("Moving new database to %s..." % scid_database)
-        list(map(os.unlink, glob.glob("%s.s*" % scid_database)))
-        systemapi(f"{SCMERGE} %s %s" % (scid_database, scid_database + ".new"))
-        list(map(os.unlink, glob.glob("%s.s*" % (scid_database + ".new"))))
+        print(f"Moving new database to {scid_database}...")
+        list(map(os.unlink, glob.glob(f"{scid_database}.s*")))
+        systemapi(f"{SCMERGE} {scid_database} {new}")
+        list(map(os.unlink, glob.glob(f"{new}.s*" % (scid_database + ".new"))))
         print("Spell checking the new database...")
-        systemapi(f"{SCSPELL} %s %s" % (scid_database, scid_spelling))
+        systemapi(f"{SCSPELL} {scid_database} {scid_spelling}")
         print("Writing to log file twic.log of links successfully merged...")
-        for link in pgn_links[::-1]:
-            systemapi("echo '%s' >> twic.log" % link)
+
+    return status
+
+
+main()
